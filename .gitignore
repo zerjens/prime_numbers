@@ -1,0 +1,24 @@
+# ignore everything (whitelist the wanted items after this)
+*
+
+# Obviously we should keep this.
+!.gitignore
+
+# Keep the top-level README & LICENSE
+!README.md
+!LICENSE
+
+# Keep project.clj
+!project.clj
+
+# Keep source, tests, and docs
+!src/
+!src/*
+
+!test/
+!test/*
+
+!doc/
+!doc/*
+
+# Ignore target and resources, for now.
