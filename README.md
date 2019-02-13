@@ -1,6 +1,6 @@
 # prime_numbers
 
-Simple Code Challenge, print out a matrix of 
+Simple Code Challenge, print out a matrix of primes and their products.
 
 ## To Run
 
