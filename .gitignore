@@ -12,13 +12,13 @@
 !project.clj
 
 # Keep source, tests, and docs
-!/src/
-!/src/*
+!src/
+!src/**
 
-!/test/
-!test/*
+!test/
+!test/**
 
-!/doc/
-!/doc/*
+!doc/
+!doc/**
 
 # Ignore target and resources, for now.
