@@ -32,7 +32,7 @@ the command line arg "alt", but specify the the table size when you do:
 23	46	69	115	161	253	299	391	437	529	667</br>
 29	58	87	145	203	319	377	493	551	667	841</br>
 
-`lein trampline run 5`</br>
+`lein trampoline run 5`</br>
  	2	3	5	7	11</br>
 2	4	6	10	14	22</br>
 3	6	9	15	21	33</br>
@@ -40,7 +40,7 @@ the command line arg "alt", but specify the the table size when you do:
 7	14	21	35	49	77</br>
 11	22	33	55	77	121</br>
 
-`lein trampline run 5 alt`</br>
+`lein trampoline run 5 alt`</br>
  	2	3	5	7	11</br>
 2	4	6	10	14	22</br>
 3	6	9	15	21	33</br>
