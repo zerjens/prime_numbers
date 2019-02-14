@@ -9,7 +9,7 @@ Simple Code Challenge, print out a matrix of primes and their products.
 `lein do ancient, kibit, test`
 
 This should print out that all dependencies are up to day, style checks
-are valid, and that all tests pass.  You can optionally regenrate the
+are valid, and that all tests pass.  You can optionally regenerate the
 html formatted documentation with:
 
 `lein marg`
@@ -19,7 +19,7 @@ html formatted documentation with:
 There are two algorithms to use, specify the alternative one by giving
 the command line arg "alt", but specify the the table size when you do:
 
-`lein trampline run`</br>
+`lein trampoline run`</br>
  	2	3	5	7	11	13	17	19	23	29</br>
 2	4	6	10	14	22	26	34	38	46	58</br>
 3	6	9	15	21	33	39	51	57	69	87</br>
