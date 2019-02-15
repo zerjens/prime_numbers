@@ -2871,7 +2871,9 @@ net.brehaut.ClojureTools = (function (SH) {
 <p>   Intended to print out a table of the primes and ...</p>
 </td><td class="codes"><pre class="brush: clojure">(ns prime-numbers.algos.iterative
   (:require
-   [clojure.spec.alpha :as spec]))</pre></td></tr><tr><td class="docs"><p>Ensures we throw an ExceptionInfo when a spec isn't valid.
+   [clojure.spec.alpha :as spec])
+  (:import
+   [java.math BigInteger]))</pre></td></tr><tr><td class="docs"><p>Ensures we throw an ExceptionInfo when a spec isn't valid.
 overrides command-line args for enable-assertions, evaled
 when namespace is loaded.</p>
 </td><td class="codes"><pre class="brush: clojure">(spec/check-asserts true)</pre></td></tr><tr><td class="docs"><p>This is intended to be a compositional style function, where
@@ -2889,24 +2891,25 @@ Ns qualified spec, applied in ':pre' section of relevant fns.</p>
 
 <p>   Returns an updated collection of primes if 'n' is prime</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- check-against-primes
-  [n col]
-  (let [sqrt-n (inc (.sqrt (biginteger n)))
-        prime? (-&gt;&gt; col
-                    (drop-while #(&lt;= sqrt-n %))
+  [^BigInteger n primes]
+  (let [prime? (-&gt;&gt; primes
+                    (drop-while #(&lt;= (inc (.sqrt n)) %))
                     (every?     #(not= 0 (rem n %))))]
-    (if prime? (cons n col) col)))</pre></td></tr><tr><td class="docs"><p>This is the first 'brute-force' method.  It recursively loops
+    (if prime? (cons n primes) primes)))</pre></td></tr><tr><td class="docs"><p>This is the first 'brute-force' method.  It recursively loops
    through an iterator to find the 'nth' prime number specified.</p>
 
 <p>   Looping is not lazy, and using BigInteger, it shouldn't thrown
    an IntegerOverflow or StackOverflow.  The time complexity for
    this is sub-optimal though, since the distribution of primes
    is proportional, and provably upper-bounded by the logarithmic
-   integral.</p>
+   integral.  This means our time complexity is super-linear,
+   which is a little hard to show directly:
+     https://math.stackexchange.com/a/94877</p>
 
 <p>   pre spec'd, thanks to Alex Miller:
-   https://groups.google.com/d/msg/clojure/H9tk04sSTWE/DErRB4_FDAAJ
+     https://groups.google.com/d/msg/clojure/H9tk04sSTWE/DErRB4_FDAAJ
    however this may not be the best approach:
-   https://github.com/bbatsov/clojure-style-guide/issues/85</p>
+     https://github.com/bbatsov/clojure-style-guide/issues/85</p>
 
 <p>   input <code>nth-prime</code> - how many primes we want to return.
    output - ordered list of primes of size 'n'.</p>
@@ -2924,7 +2927,7 @@ Ns qualified spec, applied in ':pre' section of relevant fns.</p>
       (cons (biginteger 2) (reverse primes))
       ;; Normal applicative order means we evaluate the
       ;; nested statements before passing them to recur.
-      (recur tl (check-against-primes hd primes)))))</pre></td></tr><tr><td class="docs"><p>Analog to primes-iterative that uses reduction.</p>
+      (recur tl (check-against-primes (biginteger hd) primes)))))</pre></td></tr><tr><td class="docs"><p>Analog to primes-iterative that uses reduction.</p>
 
 <p>   TODO: compare the performance of these two.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn primes-iterative'
@@ -2934,19 +2937,87 @@ Ns qualified spec, applied in ':pre' section of relevant fns.</p>
             (if (= (dec nth-prime) (count accum))
               (reduced (cons (biginteger 2) (reverse accum)))
               ;; the isProbablePrime is non-deterministic...
-              (check-against-primes cur accum)))
+              (check-against-primes (biginteger cur) accum)))
           '()
           (iterate #(+ 2 %) (biginteger 3))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#prime-numbers.algos.parallel" name="prime-numbers.algos.parallel"><h1 class="project-name">prime-numbers.algos.parallel</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Find prime numbers with parallel methods.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns prime-numbers.algos.parallel
   (:require
-   [clojure.spec.alpha :as spec]))</pre></td></tr><tr><td class="docs"><p>Same as in iterative, could put this one in a shared ns...</p>
+   [clojure.core.reducers :as r]
+   [clojure.set           :as clj-set]
+   [clojure.spec.alpha    :as spec])
+  (:import
+   ;; hypirion.com/musings/understanding-clojure-transients
+   [clojure.lang PersistentHashSet]
+   [clojure.lang PersistentList]
+   [java.math    BigInteger]))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(declare primes-parallel-lazy)</pre></td></tr><tr><td class="docs"><p>Same as in iterative, could put this one in a shared ns...</p>
 </td><td class="codes"><pre class="brush: clojure">(spec/check-asserts true)
-(spec/def ::valid-prime-fn-input pos-int?)</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#prime-numbers.main" name="prime-numbers.main"><h1 class="project-name">prime-numbers.main</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Several procedures for generating lists of prime numbers.</p>
+(spec/def ::valid-prime-parallel-input pos-int?)</pre></td></tr><tr><td class="docs"><p>Checks that a number 'n' is relatively prime to all elements
+   of the list 'primes-less-than-sqrt-n'.</p>
+
+<p>   Returns n if it is relatively prime,
+   a false-y (nil) value otherwise</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- relatively-prime?
+  [n primes-less-than-sqrt-n]
+  (when (every? #(not= 0 (rem n %)) primes-less-than-sqrt-n) n))</pre></td></tr><tr><td class="docs"><p>Finds all relative-primes from a starting prime number up
+   to its square.  Skips already found primes in this range.</p>
+
+<p>   Outside of finding a better algorithm, this
+   is where to look for optimization tweaks.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- psieve
+  [^BigInteger        cur-prime
+   ^PersistentList    fully-sieved-primes
+   ^PersistentHashSet larger-primes]
+  (-&gt;&gt; (iterate #(+ 2 %) (+ 2 cur-prime))
+       ;; 'iterate' should give chunks that can be acted on in parallel.
+       (r/take-while #(&lt; % (* cur-prime cur-prime)))
+       ;; Since this is a set it's also a fn.
+       (r/remove larger-primes)
+       ;; Check over each in parallel.
+       (r/map #(relatively-prime? % fully-sieved-primes))
+       ;; Don't care about the composite nums.
+       (r/remove nil?)
+       ;; Produce a set disjoint from 'larger-primes'.
+       (into #{})))</pre></td></tr><tr><td class="docs"><p>Wraps the lazy seq below.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn primes-parallel
+  [nth-prime]
+  {:pre [(spec/assert ::valid-prime-parallel-input nth-prime)]}
+  (cons (biginteger 2) (take (dec nth-prime) (primes-parallel-lazy))))</pre></td></tr><tr><td class="docs"><p>Yields a lazy sequence</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- primes-parallel-lazy
+  ([] (primes-parallel-lazy (biginteger 3) '() #{}))
+  ;; The two collections being towed along are a complete list of primes
+  ;; that are &lt;= 'cur-prime' as well as an incomplete set of primes that
+  ;; lie between cur-prime and cur-prime^2 this 'partially-sieved' set.
+  ([^BigInteger        cur-prime
+    ^PersistentList    fully-sieved-primes
+    ^PersistentHashSet partially-sieved-primes]
+   ;; At each value yielded we parallelize the task of finding
+   ;; the next prime. While doing this we also:
+   ;;    i) perform the parallel sieveing.
+   ;;   ii) merge this result in with prior partially-sieved primes
+   ;;  iii) bind to this new set, and also its minimum.
+   ;;   iv) cons the current prime onto our lazy sequence
+   ;;    v) continue calling 'primes-parallel-lazy'.
+   (let [[new-psp next-prime] ((juxt identity #(apply min %))
+                               (clj-set/union
+                                partially-sieved-primes
+                                (psieve cur-prime
+                                        fully-sieved-primes
+                                        partially-sieved-primes)))]
+     (lazy-seq
+      (cons
+       ;; cur-prime is provably the next consecutive prime.
+       cur-prime
+       ;; continue lazily yielding...
+       (primes-parallel-lazy (biginteger next-prime)
+                             (cons cur-prime fully-sieved-primes)
+                             (disj new-psp next-prime)))))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#prime-numbers.main" name="prime-numbers.main"><h1 class="project-name">prime-numbers.main</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Several procedures for generating lists of prime numbers.</p>
 
 <p>   Intended to print out a table of the primes and ...</p>
 </td><td class="codes"><pre class="brush: clojure">(ns prime-numbers.main
   (:require
-   [prime-numbers.algos.iterative :as iter-algos])
+   [prime-numbers.algos.iterative :as iter-algos]
+   [prime-numbers.algos.parallel  :as prll-algos])
   (:import
    [java.lang NumberFormatException])
   (:gen-class))</pre></td></tr><tr><td class="docs">
@@ -2954,6 +3025,9 @@ Ns qualified spec, applied in ':pre' section of relevant fns.</p>
 </td><td class="codes"><pre class="brush: clojure">(defmethod select-algo :alt
   [a]
   iter-algos/primes-iterative')</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defmethod select-algo :parallel
+  [a]
+  prll-algos/primes-parallel)</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defmethod select-algo :default
   [a]
   iter-algos/primes-iterative)</pre></td></tr><tr><td class="docs"><p>writes a table of the products of two collections to stdout. </p>
