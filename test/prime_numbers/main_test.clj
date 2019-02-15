@@ -8,15 +8,18 @@
 (deftest algo-selection-test
   "checks that the method dispatch works correctly"
 
-  (let [pi  prime-numbers.algos.prime-algos/primes-iterative
-        pi' prime-numbers.algos.prime-algos/primes-iterative']
+  (let [pi  prime-numbers.algos.iterative/primes-iterative
+        pi' prime-numbers.algos.iterative/primes-iterative'
+        pl  prime-numbers.algos.parallel/primes-parallel]
 
-    (is (= pi (main/select-algo nil)))
+    (is (= pi  (main/select-algo nil)))
+
+    (is (= pl  (main/select-algo :parallel)))
 
     (is (= pi' (main/select-algo :alt)))))
 
 (deftest print-table-test
-  "redirect stdout to test here"
+  "Redirect stdout to test here"
   (let [out-str (with-out-str (main/print-table! '(2 3 5 7) '(2 3 5 7)))]
 
 

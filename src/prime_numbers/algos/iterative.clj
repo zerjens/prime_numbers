@@ -1,11 +1,13 @@
-(ns prime-numbers.algos.prime-algos
+(ns prime-numbers.algos.iterative
   "Several procedures for generating lists of prime numbers.
 
    Intended to print out a table of the primes and ..."
   (:require
-   [clojure.spec.alpha :as spec]))
+   [clojure.spec.alpha :as spec])
+  (:import
+   [java.math BigInteger]))
 
-;; Ensures we throw an InfoException when a spec isn't valid.
+;; Ensures we throw an ExceptionInfo when a spec isn't valid.
 ;; overrides command-line args for enable-assertions, evaled
 ;; when namespace is loaded.
 (spec/check-asserts true)
@@ -29,12 +31,11 @@
       https://stuartsierra.com/2018/07/06/threading-with-style
 
    Returns an updated collection of primes if 'n' is prime"
-  [n col]
-  (let [sqrt-n (inc (.sqrt (biginteger n)))
-        prime? (->> col
-                    (drop-while #(<= sqrt-n %))
+  [^BigInteger n primes]
+  (let [prime? (->> primes
+                    (drop-while #(<= (inc (.sqrt n)) %))
                     (every?     #(not= 0 (rem n %))))]
-    (if prime? (cons n col) col)))
+    (if prime? (cons n primes) primes)))
 
 
 (defn primes-iterative
@@ -45,12 +46,14 @@
    an IntegerOverflow or StackOverflow.  The time complexity for
    this is sub-optimal though, since the distribution of primes
    is proportional, and provably upper-bounded by the logarithmic
-   integral.
+   integral.  This means our time complexity is super-linear,
+   which is a little hard to show directly:
+     https://math.stackexchange.com/a/94877
 
    pre spec'd, thanks to Alex Miller:
-   https://groups.google.com/d/msg/clojure/H9tk04sSTWE/DErRB4_FDAAJ
+     https://groups.google.com/d/msg/clojure/H9tk04sSTWE/DErRB4_FDAAJ
    however this may not be the best approach:
-   https://github.com/bbatsov/clojure-style-guide/issues/85
+     https://github.com/bbatsov/clojure-style-guide/issues/85
 
    input `nth-prime` - how many primes we want to return.
    output - ordered list of primes of size 'n'."
@@ -61,18 +64,18 @@
   ;; The initial values for this are a lazy list of potential prime numbers
   ;; destructured into the head and tail.  Coercion keeps each element in
   ;; this list of type `java.lang.BigInteger` which prevents int overflow.
-  (loop [[hd & tl] (cons (biginteger 2) (iterate #(+ 2 %) (biginteger 3)))
+  (loop [[hd & tl] (iterate #(+ 2 %) (biginteger 3))
          primes    '()]
 
-    (if (= nth-prime (count primes))
+    (if (= (dec nth-prime) (count primes))
 
       ;; since we cons'ed larger prime numbers to the primes list
       ;; reverse it before returning to give ascending order.
-      (reverse primes)
+      (cons (biginteger 2) (reverse primes))
 
       ;; Normal applicative order means we evaluate the
       ;; nested statements before passing them to recur.
-      (recur tl (check-against-primes hd primes)))))
+      (recur tl (check-against-primes (biginteger hd) primes)))))
 
 
 (defn primes-iterative'
@@ -83,13 +86,12 @@
 
   {:pre [(spec/assert ::valid-prime-fn-input nth-prime)]}
 
-  (reverse
-   (reduce (fn [accum cur]
-             (if (= nth-prime (count accum))
+  (reduce (fn [accum cur]
+            (if (= (dec nth-prime) (count accum))
 
-               (reduced accum)
+              (reduced (cons (biginteger 2) (reverse accum)))
 
-               ;; the isProbablePrime is non-deterministic...
-               (check-against-primes cur accum)))
-           '()
-           (cons 2 (iterate #(+ 2 %) 3)))))
+              ;; the isProbablePrime is non-deterministic...
+              (check-against-primes (biginteger cur) accum)))
+          '()
+          (iterate #(+ 2 %) (biginteger 3))))

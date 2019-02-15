@@ -3,7 +3,8 @@
 
    Intended to print out a table of the primes and ..."
   (:require
-   [prime-numbers.algos.prime-algos :as algos])
+   [prime-numbers.algos.iterative :as iter-algos]
+   [prime-numbers.algos.parallel  :as prll-algos])
   (:import
    [java.lang NumberFormatException])
   (:gen-class))
@@ -13,11 +14,15 @@
 ;; just returning the function makes this easily testable.
 (defmethod select-algo :alt
   [a]
-  algos/primes-iterative')
+  iter-algos/primes-iterative')
+
+(defmethod select-algo :parallel
+  [a]
+  prll-algos/primes-parallel)
 
 (defmethod select-algo :default
   [a]
-  algos/primes-iterative)
+  iter-algos/primes-iterative)
 
 
 (defn print-table!
