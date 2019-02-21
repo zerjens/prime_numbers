@@ -1,4 +1,6 @@
-# ignore everything (whitelist the wanted items after this)
+###
+# Ignore everything (whitelist the wanted items after this)
+###
 *
 
 # Obviously we should keep this.
@@ -8,17 +10,30 @@
 !README.md
 !LICENSE
 
+# resources (used by all projects)
+!resources/
+!resources/100k_primes.txt
+
+
+###
+# Clojure
+###
+
+!clojure/
+
+# Clojure specific README
+!clojure/README.md
+
 # Keep project.clj
-!project.clj
+!clojure/project.clj
 
 # Keep source, tests, and docs
-!src/
-!src/**
+!clojure/src/
+!clojure/src/**
 
-!test/
-!test/**
+!clojure/test/
+!clojure/test/**
 
-!docs/
-!docs/**
+!clojure/docs/
+!clojure/docs/**
 
-# Ignore target and resources, for now.
